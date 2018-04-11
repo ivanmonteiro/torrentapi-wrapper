@@ -9,8 +9,12 @@ var getToken = function () {
         if (session.token && (session.token_expires - Date.now() > 0)) {
             resolve(session);
         } else {
-            var ttl = Date.now() + 900000, ua = session.ua ? '&app_id=' + ua : '';
-            got(endpoint + '?get_token=get_token' + ua).then(function (res) {
+            var ttl = Date.now() + 900000, app_id = session.app_id ? '&app_id=' + session.app_id : '';
+            got(endpoint + '?get_token=get_token' + app_id, {
+                headers: {
+                    'user-agent': session.ua
+                }
+            }).then(function (res) {
                 session.token = JSON.parse(res.body).token;
                 session.token_expires = ttl;
                 resolve(session);
@@ -79,7 +83,7 @@ var buildQuery = function (mode, q) {
 
 var buildUrl = function (q) {
     var url = endpoint + '?', count = 1;
-    if (session.ua) url += 'app_id=' + session.ua + '&';
+    if (session.app_id) url += 'app_id=' + session.app_id + '&';
     for (var i in q) {
         url += i + '=' + q[i];
         if (count < Object.keys(q).length) {
@@ -100,23 +104,31 @@ var parseResponse = function (m) {
     }
 };
 
-var chainCall = function (ua, query, mode) {
+var chainCall = function (ua, app_id, query, mode) {
     if (!query) {
-        if (!ua) throw new Error('Missing parameters');
+        if (!ua) throw new Error('Missing User-Agent parameter');
         query = typeof ua === 'string' ? {query: ua} : ua;
         ua = false;
+        if (!app_id) throw new Error('Missing app_id parameter');
     }
     session.ua = ua;
+    session.app_id = app_id;
     return getToken().then(function (tokens) {
         return buildQuery(mode, query);
-    }).then(buildUrl).then(got).then(parseResponse);
+    }).then(buildUrl).then(function (url) {
+        return got(url, {
+            headers: {
+                'user-agent': session.ua
+            }
+        });
+    }).then(parseResponse);
 };
 
 module.exports = {
-    search: function (ua, query) {
-        return chainCall(ua, query, 'search');
+    search: function (ua, app_id, query) {
+        return chainCall(ua, app_id, query, 'search');
     },
-    list: function (ua, query) {
-        return chainCall(ua, query, 'list');
+    list: function (ua, app_id, query) {
+        return chainCall(ua, app_id, query, 'list');
     }
 };

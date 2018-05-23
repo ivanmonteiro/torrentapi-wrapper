@@ -9,7 +9,7 @@ var getToken = function () {
         if (session.token && (session.token_expires - Date.now() > 0)) {
             resolve(session);
         } else {
-            var ttl = Date.now() + 900000, ua = session.ua ? '&app_id=' + ua : '';
+            var ttl = Date.now() + 900000, ua = session.ua ? '&app_id=' + session.ua : '';
             got(endpoint + '?get_token=get_token' + ua).then(function (res) {
                 session.token = JSON.parse(res.body).token;
                 session.token_expires = ttl;
